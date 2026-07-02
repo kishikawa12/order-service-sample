@@ -1,19 +1,21 @@
 package com.example.orderservice.config;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.retry.PredefinedRetryPolicies;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.s3.S3Client;
+
+import java.time.Duration;
 
 /**
- * AWS SDK v1 clients.
+ * AWS SDK v2 clients.
  *
- * The DynamoDB client uses a plain default retry policy (fixed max error retry, default backoff).
+ * The DynamoDB client uses an aggressive retry policy with full-jitter backoff to handle
+ * frequent ProvisionedThroughputExceededException throttling observed in production under load.
  */
 @Configuration
 public class AwsConfig {
@@ -22,21 +24,25 @@ public class AwsConfig {
     private String region;
 
     @Bean
-    public AmazonDynamoDB dynamoDb() {
-        ClientConfiguration clientConfig = new ClientConfiguration()
-                .withMaxErrorRetry(3)
-                .withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicy());
+    public DynamoDbClient dynamoDb() {
+        RetryPolicy retryPolicy = RetryPolicy.builder()
+                .numRetries(8)
+                .backoffStrategy(FullJitterBackoffStrategy.builder()
+                        .baseDelay(Duration.ofMillis(100))
+                        .maxBackoffTime(Duration.ofSeconds(20))
+                        .build())
+                .build();
 
-        return AmazonDynamoDBClientBuilder.standard()
-                .withRegion(region)
-                .withClientConfiguration(clientConfig)
+        return DynamoDbClient.builder()
+                .region(Region.of(region))
+                .overrideConfiguration(c -> c.retryPolicy(retryPolicy))
                 .build();
     }
 
     @Bean
-    public AmazonS3 s3() {
-        return AmazonS3ClientBuilder.standard()
-                .withRegion(region)
+    public S3Client s3() {
+        return S3Client.builder()
+                .region(Region.of(region))
                 .build();
     }
 }
