@@ -1,6 +1,8 @@
 package com.example.orderservice.service;
 
-import com.amazonaws.services.s3.AmazonS3;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,10 +16,10 @@ import java.time.Instant;
 @Service
 public class ReportService {
 
-    private final AmazonS3 s3;
+    private final S3Client s3;
     private final String bucket;
 
-    public ReportService(AmazonS3 s3, @Value("${reports.bucket}") String bucket) {
+    public ReportService(S3Client s3, @Value("${reports.bucket}") String bucket) {
         this.s3 = s3;
         this.bucket = bucket;
     }
@@ -25,7 +27,12 @@ public class ReportService {
     public String exportNightly() {
         String key = "reports/nightly-" + Instant.now().toEpochMilli() + ".txt";
         String body = "Nightly order report generated at " + Instant.now();
-        s3.putObject(bucket, key, body);
+        s3.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .build(),
+                RequestBody.fromString(body));
         return key;
     }
 }
