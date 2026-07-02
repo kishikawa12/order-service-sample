@@ -7,9 +7,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 
 /**
- * Cold path — a nightly report export to S3. Called about once a day, so Dynatrace shows it as
- * low-traffic and low-risk. A telemetry-informed migration deprioritizes it relative to the hot
- * order path.
+ * Cold path — a nightly report export to S3. Called about once a day.
  */
 @Service
 public class ReportService {

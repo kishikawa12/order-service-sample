@@ -13,11 +13,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * AWS SDK v1 clients.
  *
- * The DynamoDB client uses a plain default retry policy (fixed max error retry). This is the
- * naive baseline: under production throttling it retries a fixed number of times with the
- * default backoff and otherwise fails. A migration that only sees the code maps this to a v2
- * default. A migration informed by Dynatrace — which shows this path throttling in production —
- * has the context to configure v2 adaptive retry (client-side rate limiting) instead.
+ * The DynamoDB client uses a plain default retry policy (fixed max error retry, default backoff).
  */
 @Configuration
 public class AwsConfig {

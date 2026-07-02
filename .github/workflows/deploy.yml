@@ -2,7 +2,7 @@ name: Build and deploy
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   # Allows manual re-deploy from the Actions tab (e.g. to reset to v1 without a git commit)
   workflow_dispatch:
 

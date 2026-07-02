@@ -8,9 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  * OneAgent auto-instruments each REST endpoint as a distinct service request, so Dynatrace
  * reports per-endpoint traffic and error rates with no custom entry-point configuration.
- * The hot write path (POST /orders) throttles in production against an under-provisioned
- * DynamoDB table — the signal a Dynatrace-informed AWS Transform migration reacts to by
- * configuring v2 client resilience (adaptive retry) rather than a naive default mapping.
+ * The hot write path (POST /orders) writes against an under-provisioned DynamoDB table.
  */
 @SpringBootApplication
 public class OrderServiceApplication {

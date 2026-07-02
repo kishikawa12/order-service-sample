@@ -15,8 +15,7 @@ import java.util.UUID;
 
 /**
  * The hot path. Writes/reads orders against an under-provisioned DynamoDB table, so putItem
- * throttles under load. This is where production throttling shows up in Dynatrace and where a
- * telemetry-informed migration would tune v2 retry behavior.
+ * throttles under load.
  */
 @Service
 public class OrderService {

@@ -13,7 +13,6 @@ import java.util.Map;
 
 /**
  * A clean, moderate-traffic read path against a well-provisioned table — no throttling.
- * Contrasts with the orders path so Dynatrace shows resilience is needed there but not here.
  */
 @Service
 public class InventoryService {

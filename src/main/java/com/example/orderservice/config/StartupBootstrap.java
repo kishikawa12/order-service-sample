@@ -25,10 +25,9 @@ import java.util.Map;
 /**
  * Idempotent bootstrap so the demo is self-contained: creates the tables and bucket if missing.
  *
- * The orders table is created with minimal provisioned capacity on purpose — under the load
- * generator it throttles (ProvisionedThroughputExceededException), which is the production signal
- * the Dynatrace-informed migration reacts to. The inventory table uses on-demand billing so it
- * never throttles (the clean contrast path).
+ * The orders table is created with minimal provisioned capacity, so it can throttle under load
+ * (ProvisionedThroughputExceededException). The inventory table uses on-demand billing so it
+ * does not throttle.
  *
  * Failures here are logged but do not stop the app — in environments where the tables/bucket are
  * pre-provisioned or the role lacks create permissions, the service still starts and serves.
