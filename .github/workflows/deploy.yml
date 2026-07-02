@@ -1,0 +1,101 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [master]
+  # Allows manual re-deploy from the Actions tab (e.g. to reset to v1 without a git commit)
+  workflow_dispatch:
+
+# OIDC — no long-lived AWS keys stored as secrets
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+  S3_BUCKET: ${{ vars.DEPLOY_BUCKET }}
+  EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 21
+          cache: maven
+
+      - name: Build fat jar
+        run: mvn -B clean package
+
+      # Auto-detect which SDK generation is in pom.xml — no manual bumping needed.
+      # Fixed labels (no run number) so all v1 runs and all v2 runs aggregate cleanly
+      # within a demo session when comparing in Dynatrace by release version.
+      - name: Detect SDK version label
+        id: version
+        run: |
+          if grep -q 'software.amazon.awssdk' pom.xml; then
+            echo "label=2.0-sdkv2" >> "$GITHUB_OUTPUT"
+          else
+            echo "label=1.0-sdkv1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload jar to S3
+        run: aws s3 cp target/order-service-sample-1.0.jar "s3://${S3_BUCKET}/order-service.jar"
+
+      - name: Deploy to EC2 via SSM
+        run: |
+          VERSION="${{ steps.version.outputs.label }}"
+          cat > /tmp/ssm-params.json <<EOF
+          {
+            "DocumentName": "AWS-RunShellScript",
+            "InstanceIds": ["${EC2_INSTANCE_ID}"],
+            "Parameters": {
+              "commands": [
+                "aws s3 cp s3://${S3_BUCKET}/order-service.jar /opt/orderservice/app.jar",
+                "printf 'DT_RELEASE_VERSION=%s\\n' '${VERSION}' > /opt/orderservice/release.env",
+                "systemctl restart orderservice"
+              ]
+            }
+          }
+          EOF
+          CMD_ID=$(aws ssm send-command \
+            --cli-input-json file:///tmp/ssm-params.json \
+            --query Command.CommandId --output text)
+          aws ssm wait command-executed \
+            --command-id "$CMD_ID" \
+            --instance-id "${EC2_INSTANCE_ID}"
+
+      - name: Notify Dynatrace
+        env:
+          DT_URL: ${{ secrets.DT_URL }}
+          DT_API_TOKEN: ${{ secrets.DT_API_TOKEN }}
+          DT_HOST_NAME: ${{ vars.DT_HOST_NAME }}
+          VERSION: ${{ steps.version.outputs.label }}
+        run: |
+          curl -sS -f -X POST "${DT_URL}/api/v2/events/ingest" \
+            -H "Authorization: Api-Token ${DT_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d @- <<JSON
+          {
+            "eventType": "CUSTOM_DEPLOYMENT",
+            "title": "Deploy ${VERSION}",
+            "entitySelector": "type(HOST),entityName(\"${DT_HOST_NAME}\")",
+            "properties": {
+              "dt.event.deployment.version": "${VERSION}",
+              "dt.event.deployment.name": "order-service-sample",
+              "dt.event.deployment.release_stage": "demo",
+              "dt.event.deployment.release_product": "order-service-sample",
+              "remediationAction": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+          }
+          JSON

@@ -1,0 +1,15 @@
+[Unit]
+Description=Order service load generator (weighted traffic for Dynatrace)
+After=orderservice.service
+Requires=orderservice.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+# Give the app time to come up and bootstrap tables before hammering it.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do curl -sf http://localhost:8080/inventory >/dev/null 2>&1 && exit 0; sleep 2; done'
+ExecStart=/opt/orderservice/loadgen.sh
+
+[Install]
+WantedBy=multi-user.target

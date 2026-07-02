@@ -1,0 +1,15 @@
+[Unit]
+Description=Order service (Spring Boot REST, long-running) — AWS SDK demo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+# Written on every CI/CD deploy; contains DT_RELEASE_VERSION=<label>
+EnvironmentFile=/opt/orderservice/release.env
+ExecStart=/opt/orderservice/run.sh
+
+[Install]
+WantedBy=multi-user.target
