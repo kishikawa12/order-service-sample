@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A clean, moderate-traffic read path against a well-provisioned table — no throttling.
+ * Reads inventory items from DynamoDB.
  */
 @Service
 public class InventoryService {

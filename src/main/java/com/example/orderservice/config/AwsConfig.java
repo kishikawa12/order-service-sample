@@ -12,8 +12,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * AWS SDK v1 clients.
- *
- * The DynamoDB client uses a plain default retry policy (fixed max error retry, default backoff).
  */
 @Configuration
 public class AwsConfig {

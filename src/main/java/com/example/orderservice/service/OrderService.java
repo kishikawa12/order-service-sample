@@ -14,8 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The hot path. Writes/reads orders against an under-provisioned DynamoDB table, so putItem
- * throttles under load.
+ * Manages order persistence in DynamoDB.
  */
 @Service
 public class OrderService {
