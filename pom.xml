@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <name>order-service-sample</name>
-    <description>Spring Boot order service on AWS SDK v1 — demo for Dynatrace-informed AWS Transform</description>
+    <description>Spring Boot order service on AWS SDK v2 — demo for Dynatrace-informed AWS Transform</description>
 
     <properties>
         <!-- Target 21 LTS: the Spring Boot repackage plugin's ASM doesn't yet read Java 25
