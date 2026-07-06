@@ -1,23 +1,26 @@
 package com.example.orderservice.config;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.BillingMode;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
-import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.s3.AmazonS3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BillingMode;
+import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
+import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ResourceInUseException;
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,8 +41,8 @@ public class StartupBootstrap {
     private static final Logger log = LoggerFactory.getLogger(StartupBootstrap.class);
 
     @Bean
-    ApplicationRunner bootstrap(AmazonDynamoDB dynamoDb,
-                                AmazonS3 s3,
+    ApplicationRunner bootstrap(DynamoDbClient dynamoDb,
+                                S3Client s3,
                                 @Value("${orders.table}") String ordersTable,
                                 @Value("${orders.table.read-capacity}") long ordersRcu,
                                 @Value("${orders.table.write-capacity}") long ordersWcu,
@@ -53,14 +56,15 @@ public class StartupBootstrap {
         };
     }
 
-    private void createProvisionedTable(AmazonDynamoDB dynamoDb, String table, String key,
+    private void createProvisionedTable(DynamoDbClient dynamoDb, String table, String key,
                                         long rcu, long wcu) {
         try {
-            dynamoDb.createTable(new CreateTableRequest()
-                    .withTableName(table)
-                    .withKeySchema(new KeySchemaElement(key, KeyType.HASH))
-                    .withAttributeDefinitions(new AttributeDefinition(key, ScalarAttributeType.S))
-                    .withProvisionedThroughput(new ProvisionedThroughput(rcu, wcu)));
+            dynamoDb.createTable(CreateTableRequest.builder()
+                    .tableName(table)
+                    .keySchema(KeySchemaElement.builder().attributeName(key).keyType(KeyType.HASH).build())
+                    .attributeDefinitions(AttributeDefinition.builder().attributeName(key).attributeType(ScalarAttributeType.S).build())
+                    .provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(rcu).writeCapacityUnits(wcu).build())
+                    .build());
             log.info("Created provisioned table {} ({} RCU / {} WCU)", table, rcu, wcu);
         } catch (ResourceInUseException e) {
             log.info("Table {} already exists", table);
@@ -69,13 +73,14 @@ public class StartupBootstrap {
         }
     }
 
-    private void createOnDemandTable(AmazonDynamoDB dynamoDb, String table, String key) {
+    private void createOnDemandTable(DynamoDbClient dynamoDb, String table, String key) {
         try {
-            dynamoDb.createTable(new CreateTableRequest()
-                    .withTableName(table)
-                    .withKeySchema(new KeySchemaElement(key, KeyType.HASH))
-                    .withAttributeDefinitions(new AttributeDefinition(key, ScalarAttributeType.S))
-                    .withBillingMode(BillingMode.PAY_PER_REQUEST));
+            dynamoDb.createTable(CreateTableRequest.builder()
+                    .tableName(table)
+                    .keySchema(KeySchemaElement.builder().attributeName(key).keyType(KeyType.HASH).build())
+                    .attributeDefinitions(AttributeDefinition.builder().attributeName(key).attributeType(ScalarAttributeType.S).build())
+                    .billingMode(BillingMode.PAY_PER_REQUEST)
+                    .build());
             log.info("Created on-demand table {}", table);
         } catch (ResourceInUseException e) {
             log.info("Table {} already exists", table);
@@ -84,7 +89,7 @@ public class StartupBootstrap {
         }
     }
 
-    private void seedInventory(AmazonDynamoDB dynamoDb, String table) {
+    private void seedInventory(DynamoDbClient dynamoDb, String table) {
         String[][] rows = {
                 {"SKU-1001", "Widget", "500"},
                 {"SKU-1002", "Gadget", "120"},
@@ -93,23 +98,27 @@ public class StartupBootstrap {
         for (String[] row : rows) {
             try {
                 Map<String, AttributeValue> item = new HashMap<>();
-                item.put("sku", new AttributeValue(row[0]));
-                item.put("name", new AttributeValue(row[1]));
-                item.put("quantity", new AttributeValue().withN(row[2]));
-                dynamoDb.putItem(new PutItemRequest(table, item));
+                item.put("sku", AttributeValue.builder().s(row[0]).build());
+                item.put("name", AttributeValue.builder().s(row[1]).build());
+                item.put("quantity", AttributeValue.builder().n(row[2]).build());
+                dynamoDb.putItem(PutItemRequest.builder()
+                        .tableName(table)
+                        .item(item)
+                        .build());
             } catch (RuntimeException e) {
                 log.warn("Could not seed inventory row {}: {}", row[0], e.getMessage());
             }
         }
     }
 
-    private void ensureBucket(AmazonS3 s3, String bucket) {
+    private void ensureBucket(S3Client s3, String bucket) {
         try {
-            if (!s3.doesBucketExistV2(bucket)) {
-                s3.createBucket(bucket);
-                log.info("Created bucket {}", bucket);
-            } else {
+            try {
+                s3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
                 log.info("Bucket {} already exists", bucket);
+            } catch (NoSuchBucketException e) {
+                s3.createBucket(CreateBucketRequest.builder().bucket(bucket).build());
+                log.info("Created bucket {}", bucket);
             }
         } catch (RuntimeException e) {
             log.warn("Could not ensure bucket {}: {}", bucket, e.getMessage());
