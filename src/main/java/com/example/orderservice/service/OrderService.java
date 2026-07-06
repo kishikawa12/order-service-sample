@@ -1,13 +1,13 @@
 package com.example.orderservice.service;
 
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.GetItemRequest;
+import com.amazonaws.services.dynamodbv2.model.GetItemResult;
+import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
 import com.example.orderservice.model.Order;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,10 +20,10 @@ import java.util.UUID;
 @Service
 public class OrderService {
 
-    private final DynamoDbClient dynamoDb;
+    private final AmazonDynamoDB dynamoDb;
     private final String table;
 
-    public OrderService(DynamoDbClient dynamoDb, @Value("${orders.table}") String table) {
+    public OrderService(AmazonDynamoDB dynamoDb, @Value("${orders.table}") String table) {
         this.dynamoDb = dynamoDb;
         this.table = table;
     }
@@ -32,28 +32,28 @@ public class OrderService {
         Order order = new Order(UUID.randomUUID().toString(), customer, amountCents, "NEW");
 
         Map<String, AttributeValue> item = new HashMap<>();
-        item.put("orderId", AttributeValue.builder().s(order.orderId()).build());
-        item.put("customer", AttributeValue.builder().s(order.customer()).build());
-        item.put("amountCents", AttributeValue.builder().n(Long.toString(order.amountCents())).build());
-        item.put("status", AttributeValue.builder().s(order.status()).build());
+        item.put("orderId", new AttributeValue(order.orderId()));
+        item.put("customer", new AttributeValue(order.customer()));
+        item.put("amountCents", new AttributeValue().withN(Long.toString(order.amountCents())));
+        item.put("status", new AttributeValue(order.status()));
 
-        dynamoDb.putItem(PutItemRequest.builder().tableName(table).item(item).build());
+        dynamoDb.putItem(new PutItemRequest(table, item));
         return order;
     }
 
     public Order get(String orderId) {
         Map<String, AttributeValue> key = new HashMap<>();
-        key.put("orderId", AttributeValue.builder().s(orderId).build());
+        key.put("orderId", new AttributeValue(orderId));
 
-        GetItemResponse result = dynamoDb.getItem(GetItemRequest.builder().tableName(table).key(key).build());
-        Map<String, AttributeValue> item = result.item();
+        GetItemResult result = dynamoDb.getItem(new GetItemRequest(table, key));
+        Map<String, AttributeValue> item = result.getItem();
         if (item == null || item.isEmpty()) {
             return null;
         }
         return new Order(
-                item.get("orderId").s(),
-                item.get("customer").s(),
-                Long.parseLong(item.get("amountCents").n()),
-                item.get("status").s());
+                item.get("orderId").getS(),
+                item.get("customer").getS(),
+                Long.parseLong(item.get("amountCents").getN()),
+                item.get("status").getS());
     }
 }
