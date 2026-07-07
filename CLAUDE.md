@@ -3,7 +3,7 @@
 A net-new Spring Boot + AWS SDK v1 order service, built to demonstrate that feeding
 **Dynatrace** production data into **AWS Transform** produces a smarter SDK v1→v2 migration
 than stock. Anchor use case: the transform configures v2 client **resilience/retry** to match
-real production throttling (not dead-code detection). Deployed **alongside** the `aws-java-sample`
+real production throttling. Deployed **alongside** the `aws-java-sample`
 / `s3sample` app on the same EC2 host as its own OneAgent-detected SERVICE.
 
 The notes below are **lessons learned about running `atx` (AWS Transform) itself** — carried over

@@ -8,7 +8,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  * OneAgent auto-instruments each REST endpoint as a distinct service request, so Dynatrace
  * reports per-endpoint traffic and error rates with no custom entry-point configuration.
- * The hot write path (POST /orders) writes against an under-provisioned DynamoDB table.
  */
 @SpringBootApplication
 public class OrderServiceApplication {
