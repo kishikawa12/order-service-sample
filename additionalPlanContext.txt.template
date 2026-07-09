@@ -1,0 +1,18 @@
+Before producing the transformation plan, query the Dynatrace MCP server to gain insight into the runtime behavior.
+
+Goal:
+{REPLACE with the transformation objective, describe what you want the planner to do with the additional context retrieved from Dynatrace. Be as specific as possible with the desired outcome.}
+
+Requirements:
+When querying for any type of data (spans, logs, events, etc.) for the first time, run a simple query to understand the data structure and field names before building more complex queries. These are the exact queries you should run for each data type:
+  fetch spans | limit 10
+  fetch logs | limit 10
+  fetch events | limit 10
+
+Filtering:
+{REPLACE with the DQL filter required to target the entities for the transformation.}
+
+Tips:
+If you don't know what field has the data you're looking for, use the ```search``` command (e.g. ```fetch logs | search "keyword" | limit 10```).
+If your queries repeatedly come back with no data, try using the `chat_with_davis_copilot` tool. Do not make unnecessary assumptions.
+Logs are associated with infrastructure entities such as pods, workloads, hosts, process groups, etc. Do not use the dt.entity.service ID as a filter for logs.

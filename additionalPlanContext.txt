@@ -1,0 +1,24 @@
+Before producing the transformation plan, query the Dynatrace MCP server to gain insight into the runtime behavior.
+
+Goal:
+Review the `OrderController` service - analyze errors and dead code. Use that data to create a more informed SDK v1 to v2 code migration, and remove dead code (services and controllers) with no spans.
+Let the Dynatrace data inform the specific SDK v2 configuration choices — don't translate v1 settings 1:1. Use what you observe about production behavior to decide how each client should be configured.
+For dead code analysis, fully review all services and controllers in the source code, then verify which appear in Dynatrace using at least a 24-hour span lookback window. Remove any services and controllers absent from runtime data during the transformation.
+
+Requirements:
+When querying for any type of data (spans, logs, events, etc.) for the first time, run a simple query to understand the data structure and field names before building more complex queries. These are the exact queries you should run for each data type:
+  fetch spans | limit 10
+  fetch logs | limit 10
+  fetch events | limit 10
+
+Filtering:
+Use `search "order-service-sample"` to identify relevant spans and logs for the Spring Boot REST order service.
+Eg.
+  fetch logs, from: now()-24h
+  | search "order-service-sample"
+Always use `from: now()-24h` in every span and log query.
+
+Tips:
+If you don't know what field has the data you're looking for, use the ```search``` command (e.g. ```fetch logs | search "keyword" | limit 10```).
+If your queries repeatedly come back with no data, try using the `chat_with_davis_copilot` tool. Do not make unnecessary assumptions.
+Logs are associated with infrastructure entities such as pods, workloads, hosts, process groups, etc. Do not use the dt.entity.service ID as a filter for logs.
