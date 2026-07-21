@@ -1,11 +1,11 @@
 package com.example.orderservice.service;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 
 import java.util.Map;
 
@@ -15,10 +15,10 @@ import java.util.Map;
 @Service
 public class OrderExportService {
 
-    private final AmazonDynamoDB dynamoDb;
+    private final DynamoDbClient dynamoDb;
     private final String table;
 
-    public OrderExportService(AmazonDynamoDB dynamoDb, @Value("${orders.table}") String table) {
+    public OrderExportService(DynamoDbClient dynamoDb, @Value("${orders.table}") String table) {
         this.dynamoDb = dynamoDb;
         this.table = table;
     }
@@ -28,20 +28,20 @@ public class OrderExportService {
 
         Map<String, AttributeValue> lastKey = null;
         do {
-            ScanRequest request = new ScanRequest(table).withLimit(100);
+            ScanRequest.Builder requestBuilder = ScanRequest.builder().tableName(table).limit(100);
             if (lastKey != null) {
-                request.setExclusiveStartKey(lastKey);
+                requestBuilder.exclusiveStartKey(lastKey);
             }
 
-            ScanResult result = dynamoDb.scan(request);
-            for (Map<String, AttributeValue> row : result.getItems()) {
+            ScanResponse result = dynamoDb.scan(requestBuilder.build());
+            for (Map<String, AttributeValue> row : result.items()) {
                 csv.append(value(row, "orderId")).append(',')
                         .append(value(row, "customer")).append(',')
                         .append(value(row, "amountCents")).append(',')
                         .append(value(row, "status")).append('\n');
             }
 
-            lastKey = result.getLastEvaluatedKey();
+            lastKey = result.lastEvaluatedKey();
         } while (lastKey != null && !lastKey.isEmpty());
 
         return csv.toString();
@@ -52,6 +52,6 @@ public class OrderExportService {
         if (v == null) {
             return "";
         }
-        return v.getS() != null ? v.getS() : (v.getN() != null ? v.getN() : "");
+        return v.s() != null ? v.s() : (v.n() != null ? v.n() : "");
     }
 }
