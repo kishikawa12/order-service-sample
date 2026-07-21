@@ -29,6 +29,7 @@ public class AwsConfig {
     public S3Client s3() {
         return S3Client.builder()
                 .region(Region.of(region))
+                .overrideConfiguration(c -> c.retryStrategy(RetryMode.STANDARD))
                 .build();
     }
 }
